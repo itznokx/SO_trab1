@@ -1,25 +1,23 @@
 # Descrição Trabalho 01
-
-Descrição do trabalho 1:
-Criar um programa que possua pelo menos duas threads, onde uma faz a “Recepção” de processos
+- Criar um programa que possua pelo menos duas threads, onde uma faz a “Recepção” de processos
 “clientes” (criando-os), colocando-os em uma fila de atendimento, e a outra thread realiza o
 trabalho do “atendente”, retirando-os da fila. O processo “Cliente” será dado pronto, enquanto o
 processo “Atendimento”, além das threads já descritas, pode ter mais threads para fazer o devido
 controle da fila (ou pode ser usada uma das duas threads originais.
-O processo “Atendimento” deve receber dois valores de entrada: N, que é o número de clientes a
+- O processo “Atendimento” deve receber dois valores de entrada: N, que é o número de clientes a
 serem gerados pela thread “Recepção” (sendo 0 para infinitos), e X, que é o tempo máximo, em ms,
 que um cliente tem “paciência” para esperar. Os clientes podem ser de dois tipos: prioridade alta,
 que tem a paciência de X/2 ms, e prioridade baixa, que tem a paciência de X ms. Um cliente se dá
 por “satisfeito” quando seu atendimento é completado em tempo inferior ou igual à sua paciência. O
 processo “Atendimento”, então, termina quando atende a todos os clientes e deve retornar a taxa de
 satisfação (quantidade de clientes satisfeitos/pelo total de clientes) e o tempo total de execução.
-Para o caso de N igual a 0, o processo atendimento deve parar quando a tecla “s” for clicada,
+- Para o caso de N igual a 0, o processo atendimento deve parar quando a tecla “s” for clicada,
 retornando a taxa de satisfação levando em consideração apenas os clientes que foram atendidos
 (ignora-se os que ficaram na fila para esse cálculo).
-A atribuição de prioridades aos clientes é feita pela thread “Recepção” ao criar um processo
+- A atribuição de prioridades aos clientes é feita pela thread “Recepção” ao criar um processo
 “Cliente”. Essa atribuição deve ser aleatória com probabilidade de 50% de atribuição de cada
 prioridade.
-Quando um cliente for atendido, seu PID deve ser escrito em um arquivo a ser lido por um processo
+- Quando um cliente for atendido, seu PID deve ser escrito em um arquivo a ser lido por um processo
 “Analista” que imprimirá os números na tela. O processo analista deve ser implementado de tal
 forma que, no máximo, os 10 primeiros valores do arquivo sejam impressos toda vez que “acordar”
 (e apagados do arquivo). Ele deve ser criado “dormindo” e deve ser “acordado” pela thread
@@ -28,7 +26,7 @@ infinito de clientes, que o usuário pode fechar o processo de atendimento a qua
 apertando “s”, o arquivo deve ser esvaziado antes, isto é, o “Analista” deve ser acordado tantas
 vezes quantas forem necessárias para imprimir todos os PID de clientes que já haviam sido
 atendidos.
-O trabalho deve ser necessariamente feito em Linux usando a linguagem C. Não é permitido o uso
+- O trabalho deve ser necessariamente feito em Linux usando a linguagem C. Não é permitido o uso
 de bibliotecas que ajudem no paralelismo ou na comunicação entre processos. As threads devem ser
 criadas usando pthreads. Para mais detalhes, observe o diagrama em anexo.
 Avaliação:
