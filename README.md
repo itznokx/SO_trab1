@@ -1,4 +1,4 @@
-# SO_trab1
+# Descrição Trabalho 01
 
 Descrição do trabalho 1:
 Criar um programa que possua pelo menos duas threads, onde uma faz a “Recepção” de processos
@@ -32,29 +32,64 @@ O trabalho deve ser necessariamente feito em Linux usando a linguagem C. Não é
 de bibliotecas que ajudem no paralelismo ou na comunicação entre processos. As threads devem ser
 criadas usando pthreads. Para mais detalhes, observe o diagrama em anexo.
 Avaliação:
-1. Pode ser feito individual ou em dupla;
-2. A nota será dada em duas partes: uma pontuação em comum para a equipe e uma pontuação a ser
-dividida pela própria equipe entre seus integrantes de acordo com a “quantidade de trabalho” que
-considerarem realizada por cada um;
-3. Um integrante da equipe pode ficar com mais de 10,0 e os pontos que passarem serão guardados
-para o próximo trabalho;
-4. As notas serão “competitivas”. O trabalho com o melhor desempenho da turma (medido pela taxa
-de satisfação e pelo tempo de execução) tem 10,0 e aquele com o pior desempenho tem 7,0. Os
-desempenhos intermediários terão suas notas definidas por interpolação linear. Trabalhos que não
-funcionarem ficarão com nota abaixo de 7,0 e serão avaliados caso a caso através do
-“aproveitamento” de código;
-5. No caso de empate, ou seja, dois ou mais trabalhos com desempenhos exatamente iguais, a nota
-será 7,0 mais um “fator de identidade”, calculado da seguinte forma:
-5.1. A cada conjunto com K trabalhos de desempenhos idênticos será atribuída uma mesma
-nota parcial Np calculada de acordo com o passo 4;
-5.2. O “fator de identidade” I, será: I = (Np – 7,0)/K
-5.3. A nota final N desses trabalhos será: N = 7,0 + I
-6. Os trabalhos serão apresentados nos dias 19 e 20 de Dezembro. No dia 19 todas as equipes
-devem estar com seus trabalhos prontos, pois a chamada será aleatória. Mais ou menos metade da
-turma será chamada a apresentar no dia 19 e o restante no dia 20. Caso haja alguma impossibilidade
-de presença, ela deve ser comunicada e justificada. Se alguma equipe quiser se candidatar para
-apresentar primeiro, pode fazê-lo. Não é necessária a presença no dia 20 para quem tiver
-apresentado já no dia 19;
-7. Para a apresentação, além de mostrar o trabalho rodando, a equipe deve preparar slides com a
-explicação das estratégias aplicadas no trabalho. Esses slides devem ser submetidos pelo SIGAA até
-as 13h do dia 19 de dezembro, independentemente do dia da apresentação da equipe.
+
+## Diagrama Exemplo
+
+### Processo 1 (*Atendimento*)
+#### Thread 1 (_Atendimento_[^8])
+- Lê na fila próximo cliente
+- Acorda o cliente
+- Espera semáforo "\sem_atend" abrir
+- Espera semáforo "\sem_block" abrir
+- Fecha semáforo "\sem_block"
+- Escreve o número do cliente (PID) no
+arquivo Lista de Números Gerados (LNG)
+- Abre semáforo "\sem_block"
+- Calcula satisfação[^6] do cliente
+- Tira cliente da fila
+- Acorda Analista[^1]
+#### Fila[^2] de clientes
+*Estrutura do cliente na fila*
+- PID
+- Hora de chegada[^4]
+- Prioridade
+- Tempo para atendimento
+#### Thread 2 (_Recepção_)
+- Cria semáforos "\sem_atend" e "\sem_block"
+- Cria N ou infinitos processos clientes9
+- Cada processo é criado com uma
+prioridade[^3] entre duas possíveis
+- Prioridade aleatória: 50% para cada
+### Processo 2 (*Analista*)
+- Gera arquivo com seu PID e dorme
+- Quando acordado:
+- Bloqueia LNG
+- Lê LNG e imprime seus 10 primeiros
+valores
+- Apaga os 10 valores que imprimiu
+- Desbloqueia LNG
+- Dorme novamente
+### Arquivo LNG 
+- Bloqueável pelo semáforo "\sem_block"
+### Processo 3 (*Cliente*[^5])
+- Gera e escreve seu tempo necessário para atendimento no arquivo Demanda
+- Dorme
+- Quando acordado: fecha semáforo de atendimento
+"\sem_atend" e pausa pela quantidade de tempo de aten-
+dimento calculado
+- Abre semáforo "\sem_atend" de atendimento
+- Finaliza
+#### Arquivo Demanda
+- Escrito pelo cliente na geração
+- Lido pelo Atendimento para
+colocar na fila
+- Após lido, pode ser apagado[^7]
+### Dicionario
+[^1]: A estratégia para acordar o analista, se é a cada atendimento, se é periódico por tempo, por quantidade de atendimentos ou qualquer outra estratégia, é escolha sua;
+[^2]: A estrutura de dados da "fila" é uma escolha de projeto sua. Não precisa ser literalmente uma fila e pode ser mais de uma; A inserção de clientes na fila pode ser feita pela thread 2 ou uma nova thread pode ser criada só para tratamento da fila;
+[^3]: Prioridade baixa significa cliente que tem X ms de "paciência". Prioridade alta significa cliente que tem X/2 ms de "paciência". O valor de X é dado de entrada para o Processo "Atendimento";
+[^4]: A hora de chegada é o tempo em ms passados entre o início do programa e a criação do cliente;
+[^5]: Será dado. Todas as equipes utilizarão o mesmo processo cliente;
+[^6]: A satisfação do cliente é "Satisfeito" se (tempo atual - hora de chegada) <= paciência. Caso contrário é "Insatisfeito";
+[^7]: O arquivo Demanda pode ser único e serve para comunicação entre os processos "Cliente" e "Atendimento" apenas no momento da inserção na fila. Como os clientes são colocados na fila um por vez, esse arquivo é compartilhado entre todos os clientes;
+[^8]: O processo Atendimento recebe de entrada o valor N de número de clientes a serem criados e o valor X de paciência de prioridade baixa. Ele dá de saída (imprime na tela) a taxa de satisfação e o tempo total de execução. Ele termina quando todos os N clientes tiverem sido atendid9 - Quando o N passado for 0, a Recepcão deve ficar em loop infinito criando clientes. Ela deve pausar a criacão se a fila ficar com 100 clientes em espera, voltando a criar mais toda vez que um espaco for liberado na fila.
