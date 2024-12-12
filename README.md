@@ -1,4 +1,5 @@
 # Descrição Trabalho 01
+> Dupla: Dimitri Medeiros, Victor Martins
 - Criar um programa que possua pelo menos duas threads, onde uma faz a “Recepção” de processos
 “clientes” (criando-os), colocando-os em uma fila de atendimento, e a outra thread realiza o
 trabalho do “atendente”, retirando-os da fila. O processo “Cliente” será dado pronto, enquanto o
