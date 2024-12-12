@@ -72,7 +72,7 @@ valores
 - Dorme novamente
 ### Arquivo LNG 
 - Bloqueável pelo semáforo "\sem_block"
-### Processo 3 (*Cliente*[^5])
+### Processo 3 (*[Cliente](https://github.com/itznokx/SO_trab1/blob/main/cliente.c)*[^5])
 - Gera e escreve seu tempo necessário para atendimento no arquivo Demanda
 - Dorme
 - Quando acordado: fecha semáforo de atendimento
