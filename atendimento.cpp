@@ -14,42 +14,37 @@
 //Time
 #include <sys/time.h>
 // Client struct
-struct{
+struct Client{
 	pid_t pid;
 	// Arrive time in u seconds (10^{-6})
 	timeval arrive,exit;
 	int priority;
 	// wait time for service
 	double wTime;
-}typedef Client;
-
-//Arg struct to pthread
-struct reception_struct {
-	int n;
-	FILE* file;
 };
-
 sem_t* sem_atend;
 sem_t* sem_block;
+Client* normalClients;
+Client* priorityClients;
+int nProcesses;
+FILE* lng;
 
 int randomPriority (){
 	return (rand()%2);
 }
 
-void *stop (void* args){
+void *stop (void* _){
 	int i = 0;
-	while(getchar()!='s')
-		i = i+1;
+	while(getchar()!='s'){
+		std::cout << i;
+	}
 	exit(0);
-	return args;
+	return nullptr;
 }
-
-
 void *service (void* arg){
 	return nullptr;
 }
 void *reception (void *arguments){
-	struct  reception_struct *args = (struct reception_struct *)arguments;
 	sem_atend = sem_open("/sem_atend", O_CREAT | O_EXCL, 0644, 1);
 	if (sem_atend == SEM_FAILED) {
 		sem_unlink("/sem_atend");
@@ -60,14 +55,29 @@ void *reception (void *arguments){
 		sem_unlink("/sem_block");
 		sem_block = sem_open("/sem_block", O_CREAT | O_EXCL, 0644, 1);
 	}
-	std::cout << "Processes: " + args->n << '\n';
+	std::string nProcessesString= (nProcesses == 0) ? "Infinite" : std::to_string(nProcesses);
+	std::cout << "Processes: " << nProcessesString << '\n';
+	Client* normalClients = new Client;
+	Client* priorityClients = new Client;
+	if (nProcesses == 0){
+		int counter = 1;
+		while (1){
+			//std::cout << "Cliente "<< counter << " criado." << '\n';
+			counter++;
+		}
+	}else{
+		int counter = 1;
+		while (counter <= nProcesses){
+			//std::cout << "Cliente "<< counter << " criado." << '\n';
+			counter++;
+		}
+	}
 	exit(0);
 	return nullptr;
 }
 
 
-int main (int narg,char *argv[]){ 
-		int nProcesses;
+int main (int narg,char *argv[]){
 	if (narg >= 2)
 		nProcesses = atoi(argv[1]);
 	else
@@ -78,15 +88,14 @@ int main (int narg,char *argv[]){
 	sem_unlink("/sem_block");
 	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
 	std::cout << "Avaliable Cores:  " << numCPU << "\n";
-	FILE* lng = fopen("lng.txt","w+");
-	struct reception_struct args;
-	args.n = nProcesses;
-	args.file = lng;
-	pthread_t thread1,thread2;
-	pthread_create (&thread1,NULL,&reception,(void*)&args);
+	lng = fopen("lng.txt","w+");
+	pthread_t thread1,stopThread,serviceThread1,scheduler;
+	pthread_create(&serviceThread1,NULL,service,NULL);
+	pthread_create (&thread1,NULL,reception,NULL);
+	pthread_create (&stopThread,NULL,stop,NULL);
+	pthread_join(stopThread,NULL);
 	pthread_join(thread1,NULL);
-	if ()
-	pthread_create (&thread2,NULL,&stop,NULL);
-	pthread_join(thread2,NULL);
+	pthread_join(serviceThread1,NULL);
+	fclose(lng);
 	return 0;
 }
