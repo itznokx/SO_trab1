@@ -57,7 +57,7 @@ arquivo Lista de Números Gerados (LNG)
 - Tempo para atendimento
 #### Thread 2 (_Recepção_)
 - Cria semáforos "\sem_atend" e "\sem_block"
-- Cria N ou infinitos processos clientes9
+- Cria N ou infinitos processos clientes[^9]
 - Cada processo é criado com uma
 prioridade[^3] entre duas possíveis
 - Prioridade aleatória: 50% para cada
@@ -93,5 +93,6 @@ colocar na fila
 [^5]: Será dado. Todas as equipes utilizarão o mesmo processo cliente;
 [^6]: A satisfação do cliente é "Satisfeito" se (tempo atual - hora de chegada) <= paciência. Caso contrário é "Insatisfeito";
 [^7]: O arquivo Demanda pode ser único e serve para comunicação entre os processos "Cliente" e "Atendimento" apenas no momento da inserção na fila. Como os clientes são colocados na fila um por vez, esse arquivo é compartilhado entre todos os clientes;
-[^8]: O processo Atendimento recebe de entrada o valor N de número de clientes a serem criados e o valor X de paciência de prioridade baixa. Ele dá de saída (imprime na tela) a taxa de satisfação e o tempo total de execução. Ele termina quando todos os N clientes tiverem sido atendid9 - Quando o N passado for 0, a Recepcão deve ficar em loop infinito criando clientes. Ela deve pausar a criacão se a fila ficar com 100 clientes em espera, voltando a criar mais toda vez que um espaco for liberado na fila.
+[^8]: O processo Atendimento recebe de entrada o valor N de número de clientes a serem criados e o valor X de paciência de prioridade baixa. Ele dá de saída (imprime na tela) a taxa de satisfação e o tempo total de execução. Ele termina quando todos os N clientes tiverem sido atendido
+[^9]: Quando o N passado for 0, a Recepcão deve ficar em loop infinito criando clientes. Ela deve pausar a criacão se a fila ficar com 100 clientes em espera, voltando a criar mais toda vez que um espaco for liberado na fila.
 
