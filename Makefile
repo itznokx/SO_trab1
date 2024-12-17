@@ -2,6 +2,6 @@ all: main.out
 	@echo "compiled"
 main.out:
 	clear
-	g++ atendimento.cpp -Wall -Wextra -o3
+	g++ -o3 -o a.out atendimento.cpp
 clean:
 	rm *.out
