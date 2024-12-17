@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 
 //Multi-Process Handling
 #include <pthread.h>
@@ -42,6 +43,13 @@ void *stop (void* _){
 	return nullptr;
 }
 void *service (void* arg){
+	while (1) {
+		if (normalClients==NULL){
+			
+		}
+	}
+	FILE* demanda = fopen("demanda.txt","r");
+	fclose(demanda);
 	return nullptr;
 }
 void *reception (void *arguments){
@@ -57,17 +65,25 @@ void *reception (void *arguments){
 	}
 	std::string nProcessesString= (nProcesses == 0) ? "Infinite" : std::to_string(nProcesses);
 	std::cout << "Processes: " << nProcessesString << '\n';
-	Client* normalClients = new Client;
-	Client* priorityClients = new Client;
+	
 	if (nProcesses == 0){
+		normalClients = new Client[100];
+		priorityClients = new Client[100];
 		int counter = 1;
 		while (1){
+			Client aux;
+			gettimeofday(&aux.arrive,NULL);
 			//std::cout << "Cliente "<< counter << " criado." << '\n';
+
 			counter++;
 		}
 	}else{
+		normalClients = new Client[nProcesses];
+		priorityClients = new Client[nProcesses];
 		int counter = 1;
 		while (counter <= nProcesses){
+			Client aux;
+			gettimeofday(&aux.arrive,NULL);
 			//std::cout << "Cliente "<< counter << " criado." << '\n';
 			counter++;
 		}
@@ -86,8 +102,8 @@ int main (int narg,char *argv[]){
 	sem_unlink("/sem_atend");
 	sem_close(sem_block);
 	sem_unlink("/sem_block");
-	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
-	std::cout << "Avaliable Cores:  " << numCPU << "\n";
+	int numCPU = 		sysconf(_SC_NPROCESSORS_ONLN);
+	std::cout << "Avaliable Cores:  " << numCPU << '\n';
 	lng = fopen("lng.txt","w+");
 	pthread_t thread1,stopThread,serviceThread1,scheduler;
 	pthread_create(&serviceThread1,NULL,service,NULL);
@@ -96,6 +112,5 @@ int main (int narg,char *argv[]){
 	pthread_join(stopThread,NULL);
 	pthread_join(thread1,NULL);
 	pthread_join(serviceThread1,NULL);
-	fclose(lng);
 	return 0;
 }
