@@ -103,6 +103,7 @@ void enqueue (FilaCliente *queue,Cliente *client){
 	}
 }
 Cliente* dequeue(FilaCliente *queue){
+	printf("Dequeue\n");
 	if (queue->priority==0)
 		pthread_mutex_lock (&nQueue_mutex);
 	else
@@ -218,7 +219,6 @@ void* reception(void* args){
     	if (nProcesses>0 && created>nProcesses){
     		break;
     	}
-    	printf("Checkpoint0\n");
     	int pAux = randomPriority();
     	if (pAux==0){
     		
@@ -227,12 +227,10 @@ void* reception(void* args){
     		while(normalQueue->size==MAX_QUEUE_CLIENTS && 
         		(nProcesses==0 || (nProcesses>0 && created<nProcesses))) {
         	// Se a fila estiver cheia 
-	        	printf("Waiting normalQueue queue_not_full\n");
 	            pthread_cond_wait(&nQueue_not_full,&nQueue_mutex);
 	        	// Desbloqueia o cadeado da fila
         	}
 	        pthread_mutex_unlock(&nQueue_mutex);
-	        printf("Checkpoint1\n");
         }
         else {
         	pthread_mutex_lock((&pQueue_mutex));
@@ -240,12 +238,10 @@ void* reception(void* args){
     		while(priorityQueue->size==MAX_QUEUE_CLIENTS && (nProcesses==0 || (nProcesses>0 && created<nProcesses)))
     		{
 	        	// Se a fila estiver cheia 
-	        	printf("Waiting priorityQueue queue_not_full\n");
 	            pthread_cond_wait(&pQueue_not_full,&pQueue_mutex);
 	        	// Desbloqueia o cadeado da fila
        		}
 	        pthread_mutex_unlock(&pQueue_mutex);
-        	printf("Checkpoint2\n");
     	}
        	if (nProcesses>0 && created>=nProcesses) 
        		break;
@@ -279,9 +275,7 @@ void* reception(void* args){
         	enqueue(normalQueue,client);
         else
         	enqueue(priorityQueue,client);
-        printf("Cliente %d criado. (%d) (%d)\n",created,
-        										client->serviceTime,
-        										client->priority);
+        //printf("Cliente %d criado. (%d) (%d)\n",created,client->serviceTime,client->priority);
         created++;
     }
     return nullptr;
@@ -299,22 +293,29 @@ void* service(void* args){
 			(priorityQueue->size)==0){
 			break;
 		}
-		printf("Service created.\n");
 		Cliente *client = (Cliente*)malloc(sizeof(Cliente));
 		// Atende 1 a cada 3 da fila Normal
-		if ((totalClients%3==0)&&normalQueue->size>0){
+		if ((totalClients%3==0)){
+			if (normalQueue->size <= 0){
+				continue;
+			}
+			printf("checkpoint1\n");
 			client = dequeue(normalQueue);
 		}
-		if ((totalClients%3!=0)&&priorityQueue->size>0){
+		if ((totalClients%3!=0)){
+			if (priorityQueue->size <= 0){
+				continue;
+			}
+			printf("checkpoint2\n");
 			client = dequeue(priorityQueue);
 		}
 		kill (client->pid,SIGCONT);
 		sem_wait(sem_atend);
 		struct timeval end_service;
 		gettimeofday(&end_service,NULL);
-		totalClients++;
 		long time_passed = calculate_time_difference(client->arrive,end_service);
 		long patience = client->patience;
+		totalClients++;
 		if (time_passed<=patience)
 			satisfieds++;
 		sem_wait(sem_block);
@@ -322,7 +323,6 @@ void* service(void* args){
 		fprintf(f, "%d\n",client->pid);
 		fclose(f);
 		sem_post(sem_block);
-		
 	}
 	return args;
 }
@@ -356,11 +356,11 @@ int main (int narg,char* argv[]){
 	args.fila2= &pQueue;
 	
 	pthread_create(&receptionThread,NULL,reception,&args);
-	//pthread_create(&serviceThread1,NULL,service,&args);
+	pthread_create(&serviceThread1,NULL,service,&args);
 	pthread_create(&stopThread,NULL,stop_program,&args);
 	
 	pthread_join(receptionThread,NULL);
-	//pthread_join(serviceThread1,NULL);
+	pthread_join(serviceThread1,NULL);
 	pthread_join(stopThread,NULL);
 	while(running){
 
