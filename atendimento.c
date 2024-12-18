@@ -45,7 +45,7 @@ int randomPriority (){
 	return (rand()%2);
 }
 void start_queue(FilaCliente *queue,int alloc_size,int priority){
-	queue = (FilaCliente*)malloc(sizeof(FilaCliente));
+	//queue = (FilaCliente*)malloc(sizeof(FilaCliente));
 	queue->first = (Cliente*)malloc(alloc_size*sizeof(FilaCliente));
 	// Bloqueador de fila
 	queue->size = 0;
@@ -53,19 +53,18 @@ void start_queue(FilaCliente *queue,int alloc_size,int priority){
 	queue->priority = priority;
 	queue->first = NULL;
 	queue->last = NULL;
-	printf("Queue started.\n");
 }
 void destroy_queue(FilaCliente* queue){
 	free(queue->first);
 	free(queue->last);
 }
-Cliente* new_Client(pid_t pid,int serviceTime,int priority){
+Cliente* new_Client(pid_t pid,int serviceTime,int pp){
 	Cliente* newClient = (Cliente*)malloc(sizeof(Cliente));
 	gettimeofday(&newClient->arrive,NULL);
 	newClient->pid = pid;
 	newClient->serviceTime = serviceTime;
-	newClient->priority = priority;
-	newClient->patience = (priority==0)?globalPatience:globalPatience/2;
+	newClient->priority = pp;
+	newClient->patience = (pp==0)?globalPatience:globalPatience/2;
 	newClient->next = NULL;
 	return newClient;
 }
@@ -81,7 +80,6 @@ void enqueue (FilaCliente *queue,Cliente *client){
 		pthread_cond_wait (&nQueue_not_full,&nQueue_mutex);
 	else
 		pthread_cond_wait (&pQueue_not_full,&pQueue_mutex);
-	printf("checkpoint4\n");
 	}
 	if (queue->first==NULL){
 		queue->first = client;
@@ -103,16 +101,17 @@ void enqueue (FilaCliente *queue,Cliente *client){
 	}
 }
 Cliente* dequeue(FilaCliente *queue){
-	printf("Dequeue\n");
 	if (queue->priority==0)
 		pthread_mutex_lock (&nQueue_mutex);
 	else
 		pthread_mutex_lock (&pQueue_mutex);
 	while (queue->size == 0){
-		if (queue->priority==0)
-			pthread_cond_wait (&nQueue_not_full,&nQueue_mutex);
-		else
-			pthread_cond_wait (&pQueue_not_full,&pQueue_mutex);
+		if (queue->priority==0){
+			pthread_cond_wait (&nQueue_not_empty,&nQueue_mutex);
+		}
+		else{
+			pthread_cond_wait (&pQueue_not_empty,&pQueue_mutex);
+		}
 	}
 	Cliente *client = queue->first;
 	queue->first = client->next;
@@ -125,14 +124,14 @@ Cliente* dequeue(FilaCliente *queue){
 		pthread_cond_signal (&pQueue_not_empty);
 		pthread_mutex_unlock(&pQueue_mutex);
 	}
+
 	return client;
 }
 // Thread-function para parar o programa
 void* stop_program(void* args){
 	printf("Stop_program is listening. (s to stop)\n");
 	while (getchar()!='s'){
-		if (totalClients%10==0)
-			wake_analist();
+
 	}
 	running = false;
 	exit(1);
@@ -152,7 +151,6 @@ int start_analist (){
 		return pidAnalist;
 	}
 	fscanf(analist,"%i",&aux);
-	printf("Analist Started.\n");
 	return aux;
 }
 
@@ -203,13 +201,11 @@ void* reception(void* args){
         sem_unlink("/sem_atend");
         sem_atend = sem_open("/sem_atend", O_CREAT, 0644, 1);
     }
-    printf("sem_atend created.\n");
     sem_block = sem_open("/sem_block", O_CREAT|O_EXCL, 0644, 1);
     if (sem_block == SEM_FAILED) {
-        sem_unlink("/sem_block");
+    	sem_unlink("/sem_block");
         sem_block = sem_open("/sem_block", O_CREAT, 0644, 1);
     }
-    printf("sem_block created.\n");
     analistaPID = start_analist();
     int created = 0;
     while ((running&&nProcesses==0)|| (nProcesses>0&&created<nProcesses)){
@@ -221,7 +217,6 @@ void* reception(void* args){
     	}
     	int pAux = randomPriority();
     	if (pAux==0){
-    		
     		pthread_mutex_lock(&nQueue_mutex);
     		// Verificar se a fila estiver cheia
     		while(normalQueue->size==MAX_QUEUE_CLIENTS && 
@@ -257,9 +252,6 @@ void* reception(void* args){
             perror("execl error.");
             exit(1);
         }
-    	
-        
-   		
    		int serviceTime;
         FILE *f = fopen("demanda.txt","r+");
         if (!f){
@@ -284,6 +276,7 @@ void* service(void* args){
 	ArgsPass* argStruct = (ArgsPass*)args;
 	FilaCliente* normalQueue 	= argStruct->fila1;
 	FilaCliente* priorityQueue 	= argStruct->fila2;
+
 	while (	(nProcesses&&totalClients<nProcesses)||
 			(nProcesses==0&&running)||
 			(nProcesses==0&&normalQueue->size>0)||
@@ -293,29 +286,29 @@ void* service(void* args){
 			(priorityQueue->size)==0){
 			break;
 		}
-		Cliente *client = (Cliente*)malloc(sizeof(Cliente));
+		Cliente* client;
 		// Atende 1 a cada 3 da fila Normal
 		if ((totalClients%3==0)){
 			if (normalQueue->size <= 0){
-				continue;
+				client = dequeue(normalQueue);
+				printf("Dequeue normal\n");
 			}
-			printf("checkpoint1\n");
-			client = dequeue(normalQueue);
 		}
 		if ((totalClients%3!=0)){
-			if (priorityQueue->size <= 0){
-				continue;
+			if (priorityQueue->size > 0){
+				client = dequeue(normalQueue);
+				printf("Dequeue priority\n");
 			}
-			printf("checkpoint2\n");
-			client = dequeue(priorityQueue);
 		}
 		kill (client->pid,SIGCONT);
+		printf("checkpoint2 PID-> %d\n",client->pid);
 		sem_wait(sem_atend);
 		struct timeval end_service;
 		gettimeofday(&end_service,NULL);
 		long time_passed = calculate_time_difference(client->arrive,end_service);
 		long patience = client->patience;
 		totalClients++;
+		printf("totalClients: %d\n",totalClients);
 		if (time_passed<=patience)
 			satisfieds++;
 		sem_wait(sem_block);
@@ -323,6 +316,7 @@ void* service(void* args){
 		fprintf(f, "%d\n",client->pid);
 		fclose(f);
 		sem_post(sem_block);
+		printf("checkpoint3\n");
 	}
 	return args;
 }
@@ -355,15 +349,14 @@ int main (int narg,char* argv[]){
 	args.fila1= &nQueue;
 	args.fila2= &pQueue;
 	
-	pthread_create(&receptionThread,NULL,reception,&args);
-	pthread_create(&serviceThread1,NULL,service,&args);
-	pthread_create(&stopThread,NULL,stop_program,&args);
-	
-	pthread_join(receptionThread,NULL);
+	pthread_create(&receptionThread,NULL,reception,(void*)&args);
+	pthread_create(&serviceThread1,NULL,service,(void*)&args);
+	pthread_create(&stopThread,NULL,stop_program,NULL);
 	pthread_join(serviceThread1,NULL);
+	pthread_join(receptionThread,NULL);
 	pthread_join(stopThread,NULL);
 	while(running){
-
+		printf("running\n");
 	}
 	printf("End of threads.\n");
 	calculate_satisfaction();

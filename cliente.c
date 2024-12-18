@@ -19,7 +19,7 @@ int main()
  fprintf(demanda, "%d", tempo);
  fclose(demanda);
 
- //raise(SIGSTOP);
+ raise(SIGSTOP);
  sem_t *sem = sem_open("/sem_atend", O_RDWR);
 
  if(sem != SEM_FAILED) sem_wait(sem);
