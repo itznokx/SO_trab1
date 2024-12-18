@@ -1,6 +1,6 @@
 // Bibliotecas básicas
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Bibliotecas de processo
@@ -21,20 +21,29 @@
 
 // Bilbiotecas auxiliares
 #include "cliente.h"
+#include <errno.h>
 
-struct{
-	Cliente queue[1000];
-	int front;
+typedef struct FilaCliente
+{
+	Cliente* first;
+	Cliente* last;
 	int size;
-	int count;
-}typedef Queue;
+	int max_size;
+	// Bloqueador de fila
+	pthread_mutex_t queue_mutex;
+	// Condição de fila não cheia -> dequeue function use
+	pthread_cond_t queue_not_full;
+	// Condição de fila não vazia -> enqueue function use
+	pthread_cond_t queue_not_empty;
+}FilaCliente;
 
 struct timeval start,end;
-
-void  	enqueueNormal(Cliente client);
-Cliente dequeueNormal();
-void  	enqueuPriority(Cliente client);
-Cliente dequeuePriority();
+int		random_priority(int alloc_size);
+Cliente* new_Client(pid_t pid,int serviceTime,int priority);
+void 	destroy_queue(FilaCliente* queue);
+void	start_queue(FilaCliente *queue,int alloc_size);
+void  	enqueue(FilaCliente *queue,Cliente *client);
+Cliente* dequeue(FilaCliente *queue);
 void*	stop_program(void* args);
 int		start_analist();
 void	wake_analist();

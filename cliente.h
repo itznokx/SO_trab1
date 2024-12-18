@@ -3,10 +3,12 @@
 #include <time.h>
 #include <unistd.h>
 
-struct{
+typedef struct Cliente{
+	struct Cliente* next;
 	pid_t pid;
 	struct timeval arrive,end;
 	int serviceTime;
 	int priority;
-	int patience;
-}typedef Cliente;
+	long patience;
+}Cliente;
+

@@ -1,7 +1,12 @@
-all: main.out
+all: atendimento analista cliente
 	@echo "compiled"
-main.out:
+atendimento:
 	clear
-	gcc -o3 atendimento.c -o atendimento.out
+	gcc -o3 -Wall -Wextra  atendimento.c -o atendimento.out
+analista:
+	gcc -o3 analista.c -o analista.out
+cliente:
+	gcc cliente.c -o cliente.out
 clean:
-	rm *.out
+	rm -rf *.out
+	clear
