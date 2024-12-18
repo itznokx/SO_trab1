@@ -20,8 +20,7 @@ sem_t* sem_atend;
 
 // Filas de Cliente
 
-FilaCliente *nQueue;
-FilaCliente *pQueue;
+
 
 // PID do analista
 
@@ -316,13 +315,14 @@ int main (int narg,char* argv[]){
 	printf("MAX_QUEUE_CLIENTS: %d\n",MAX_QUEUE_CLIENTS);
 	printf("Client Processes: %d\n",nProcesses);
 	printf("Global Patience: %d\n",globalPatience);
-
-	start_queue(nQueue,MAX_QUEUE_CLIENTS);
-	start_queue(pQueue,MAX_QUEUE_CLIENTS);
-
+	FilaCliente nQueue;
+	FilaCliente pQueue;
+	start_queue(&nQueue,MAX_QUEUE_CLIENTS);
+	start_queue(&pQueue,MAX_QUEUE_CLIENTS);
+	
 	ArgsPass args;
 	args.fila1= &nQueue;
-	args.fila2= *pQueue;
+	args.fila2= &pQueue;
 	pthread_t receptionThread,serviceThread1,stopThread;
 	pthread_create(&receptionThread,NULL,reception,(void*)&args);
 	//pthread_create(&serviceThread1,NULL,service,NULL);
