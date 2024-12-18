@@ -110,11 +110,11 @@ void calculate_satisfaction(){
     sem_unlink("/sem_atend");
     sem_close(sem_block);
     sem_unlink("/sem_block");
+    double satisfaction_rate = 0;
     if (totalClients>0) {
         satisfaction_rate = (double)satisfieds / (double)totalClients;
     }
     gettimeofday(&program_end,NULL);
-    double satisfaction_rate = 0;
     long total_time = calculate_time_difference(program_start,program_end);
     printf("Taxa de satisfação: %.2f%%\n", satisfaction_rate*100);
     printf("Tempo total de execução: %ld ms\n", total_time);
@@ -146,8 +146,8 @@ void* reception(void* args){
     		break;
     	pthread_mutex_lock(&queue_mutex);
     	// Verificar se a fila estiver cheia
-        while(	normalQueue.count==MAX_QUEUE && 
-        		(nProcesses==0 || (nProcesses>0 && created<N))) {
+        while(	normalQueue.count==MAX_QUEUE_CLIENTS && 
+        		(nProcesses==0 || (nProcesses>0 && created<nProcesses))) {
         	// Se a fila estiver cheia 
             pthread_cond_wait(&queue_not_full, &queue_mutex);
         }
@@ -198,7 +198,7 @@ void* service(void* args){
 		if (nProcesses==0 && !running && 
 			normalQueue.count==0 && 
 			priorityQueue.count==0){
-			break
+			break;
 		}
 		Cliente client;
 		// Atende 1 a cada 3 da fila Normal
@@ -206,7 +206,7 @@ void* service(void* args){
 			client = dequeueNormal();
 		}
 		if ((totalClients%3!=0)&&priorityQueue.count>0){
-			client = priorityQueue();
+			client = dequeuePriority();
 		}
 		kill (client.pid,SIGCONT);
 		sem_wait(sem_atend);
@@ -216,7 +216,7 @@ void* service(void* args){
 		sem_wait(sem_block);
 		FILE *f = fopen("lng.txt","w+");
 		fprintf(f, "%d\n",client.pid);
-		fclose(f)
+		fclose(f);
 		sem_post(sem_block);
 		if ((nProcesses-totalClients<10)||(totalClients%10==0))
 			wake_analist();
@@ -228,14 +228,14 @@ void clean(){
 	remove ("demanda.txt");
 }
 int main (int narg,char* argv[]){
-	if (argc<3){
-		printf(	"Formato invalido. Use: ./a.out N P\n
-				N: numero de clientes e P: paciencia.\n");
+	if (narg<3){
+		printf("Formato invalido. Use: ./a.out N P\n");
+		printf("N: numero de clientes e P: paciencia.\n");
 		return 1;
 	}
 	gettimeofday(&program_start,NULL);
 	nProcesses = atoi(argv[1]);
-	X = atoi(argv[2]);
+	globalPatience = atoi(argv[2]);
 	if (nProcesses==0){
 		MAX_QUEUE_CLIENTS=100;
 	}

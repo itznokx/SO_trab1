@@ -8,7 +8,7 @@
 #include <signal.h>
 
 // Bibliotecas de Multi-threading
-#include <pthreads.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <fcntl.h>
 
@@ -23,7 +23,7 @@
 #include "cliente.h"
 
 struct{
-	Client queue[];
+	Cliente queue[1000];
 	int front;
 	int size;
 	int count;
