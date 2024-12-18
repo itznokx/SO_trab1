@@ -29,19 +29,14 @@ typedef struct FilaCliente
 	Cliente* last;
 	int size;
 	int max_size;
-	// Bloqueador de fila
-	pthread_mutex_t queue_mutex;
-	// Condição de fila não cheia -> dequeue function use
-	pthread_cond_t queue_not_full;
-	// Condição de fila não vazia -> enqueue function use
-	pthread_cond_t queue_not_empty;
+	int priority;
 }FilaCliente;
 
 struct timeval start,end;
 int		random_priority(int alloc_size);
 Cliente* new_Client(pid_t pid,int serviceTime,int priority);
 void 	destroy_queue(FilaCliente* queue);
-void	start_queue(FilaCliente *queue,int alloc_size);
+void	start_queue(FilaCliente *queue,int alloc_size,int priority);
 void  	enqueue(FilaCliente *queue,Cliente *client);
 Cliente* dequeue(FilaCliente *queue);
 void*	stop_program(void* args);

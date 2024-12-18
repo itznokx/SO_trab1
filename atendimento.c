@@ -13,14 +13,22 @@ int 	satisfieds =0;
 int 	totalClients = 0;
 int 	MAX_QUEUE_CLIENTS = 100;
 struct timeval program_start,program_end;
+pthread_t receptionThread,serviceThread1,stopThread;
 // Semáforos
 
 sem_t* sem_block;
 sem_t* sem_atend;
-
-// Filas de Cliente
-
-
+sem_t* sem_nQueue;
+sem_t* sem_pQueue;
+// Mutex QUEUE
+pthread_mutex_t nQueue_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t pQueue_mutex = PTHREAD_MUTEX_INITIALIZER;
+// Condição de fila não cheia -> dequeue function use
+pthread_cond_t nQueue_not_full = PTHREAD_COND_INITIALIZER;
+pthread_cond_t pQueue_not_full = PTHREAD_COND_INITIALIZER; 
+// Condição de fila não vazia -> enqueue function use
+pthread_cond_t nQueue_not_empty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t pQueue_not_empty = PTHREAD_COND_INITIALIZER;
 
 // PID do analista
 
@@ -36,25 +44,20 @@ typedef struct ArgsPass
 int randomPriority (){
 	return (rand()%2);
 }
-void start_queue(FilaCliente *queue,int alloc_size){
+void start_queue(FilaCliente *queue,int alloc_size,int priority){
 	queue = (FilaCliente*)malloc(sizeof(FilaCliente));
 	queue->first = (Cliente*)malloc(alloc_size*sizeof(FilaCliente));
 	// Bloqueador de fila
-	pthread_mutex_init(&queue->queue_mutex, NULL);
-	// Condição de fila não cheia -> dequeue function use
-    pthread_cond_init(&queue->queue_not_full, NULL);
-	// Condição de fila não vazia -> enqueue function use
-    pthread_cond_init(&queue->queue_not_empty, NULL);
 	queue->size = 0;
 	queue->max_size = alloc_size;
+	queue->priority = priority;
 	queue->first = NULL;
 	queue->last = NULL;
 	printf("Queue started.\n");
 }
 void destroy_queue(FilaCliente* queue){
-	pthread_mutex_destroy(&queue->queue_mutex);
-    pthread_cond_destroy(&queue->queue_not_full);
-    pthread_cond_destroy(&queue->queue_not_empty);
+	free(queue->first);
+	free(queue->last);
 }
 Cliente* new_Client(pid_t pid,int serviceTime,int priority){
 	Cliente* newClient = (Cliente*)malloc(sizeof(Cliente));
@@ -68,10 +71,17 @@ Cliente* new_Client(pid_t pid,int serviceTime,int priority){
 }
 void enqueue (FilaCliente *queue,Cliente *client){
 	// Bloqueia a fila
-	pthread_mutex_lock (&queue->queue_mutex);
+	if (queue->priority==0)
+		pthread_mutex_lock (&nQueue_mutex);
+	else
+		pthread_mutex_lock (&pQueue_mutex);
 	// Verifica se a fila está cheia
-	while (queue->size == queue->max_size){
-		pthread_cond_wait (&queue->queue_not_full,&queue->queue_mutex);
+	while (queue->size == MAX_QUEUE_CLIENTS){
+		if (queue->priority==0)
+		pthread_cond_wait (&nQueue_not_full,&nQueue_mutex);
+	else
+		pthread_cond_wait (&pQueue_not_full,&pQueue_mutex);
+	printf("checkpoint4\n");
 	}
 	if (queue->first==NULL){
 		queue->first = client;
@@ -83,19 +93,37 @@ void enqueue (FilaCliente *queue,Cliente *client){
 		queue->last= client;
 	}
 		queue->size++;
-	pthread_cond_signal (&queue->queue_not_empty);
-	pthread_mutex_unlock(&queue->queue_mutex);
+	if (queue->priority==0){
+		pthread_cond_signal (&nQueue_not_empty);
+		pthread_mutex_unlock(&nQueue_mutex);
+	}
+	else{
+		pthread_cond_signal (&pQueue_not_empty);
+		pthread_mutex_unlock(&pQueue_mutex);
+	}
 }
 Cliente* dequeue(FilaCliente *queue){
-	pthread_mutex_lock (&queue->queue_mutex);
+	if (queue->priority==0)
+		pthread_mutex_lock (&nQueue_mutex);
+	else
+		pthread_mutex_lock (&pQueue_mutex);
 	while (queue->size == 0){
-		pthread_cond_wait (&queue->queue_not_empty,&queue->queue_mutex);
+		if (queue->priority==0)
+			pthread_cond_wait (&nQueue_not_full,&nQueue_mutex);
+		else
+			pthread_cond_wait (&pQueue_not_full,&pQueue_mutex);
 	}
 	Cliente *client = queue->first;
 	queue->first = client->next;
 	queue->size--;
-	pthread_cond_signal(&queue->queue_not_full);
-	pthread_mutex_unlock(&queue->queue_mutex);
+	if (queue->priority==0){
+		pthread_cond_signal (&nQueue_not_empty);
+		pthread_mutex_unlock(&nQueue_mutex);
+	}
+	else{
+		pthread_cond_signal (&pQueue_not_empty);
+		pthread_mutex_unlock(&pQueue_mutex);
+	}
 	return client;
 }
 // Thread-function para parar o programa
@@ -106,7 +134,7 @@ void* stop_program(void* args){
 			wake_analist();
 	}
 	running = false;
-	exit(0);
+	exit(1);
 	return args;
 }
 int start_analist (){
@@ -167,8 +195,8 @@ void* reception(void* args){
 	}
 	*/
 	ArgsPass* argStruct = (ArgsPass*)args;
-	FilaCliente* normalQueue 	= argStruct->fila1;
-	FilaCliente* priorityQueue 	= argStruct->fila2;
+	FilaCliente* normalQueue 	= (FilaCliente*)argStruct->fila1;
+	FilaCliente* priorityQueue 	= (FilaCliente*)argStruct->fila2;
 	sem_atend = sem_open("/sem_atend", O_CREAT|O_EXCL, 0644, 1);
     if (sem_atend == SEM_FAILED) {
         sem_unlink("/sem_atend");
@@ -190,30 +218,34 @@ void* reception(void* args){
     	if (nProcesses>0 && created>nProcesses){
     		break;
     	}
+    	printf("Checkpoint0\n");
     	int pAux = randomPriority();
     	if (pAux==0){
-    		printf("Checkpoint1\n");
-    		pthread_mutex_lock(&normalQueue->queue_mutex);
+    		
+    		pthread_mutex_lock(&nQueue_mutex);
     		// Verificar se a fila estiver cheia
     		while(normalQueue->size==MAX_QUEUE_CLIENTS && 
         		(nProcesses==0 || (nProcesses>0 && created<nProcesses))) {
         	// Se a fila estiver cheia 
-	            pthread_cond_wait(&normalQueue->queue_not_full,&normalQueue->queue_mutex);
+	        	printf("Waiting normalQueue queue_not_full\n");
+	            pthread_cond_wait(&nQueue_not_full,&nQueue_mutex);
 	        	// Desbloqueia o cadeado da fila
-	        	pthread_mutex_unlock(&normalQueue->queue_mutex);
         	}
+	        pthread_mutex_unlock(&nQueue_mutex);
+	        printf("Checkpoint1\n");
         }
         else {
-        	pthread_mutex_lock((&priorityQueue->queue_mutex));
-        	printf("Checkpoint2\n");
+        	pthread_mutex_lock((&pQueue_mutex));
     		// Verificar se a fila estiver cheia
-    		while(	priorityQueue->size==MAX_QUEUE_CLIENTS && 
-        		(nProcesses==0 || (nProcesses>0 && created<nProcesses))) {
+    		while(priorityQueue->size==MAX_QUEUE_CLIENTS && (nProcesses==0 || (nProcesses>0 && created<nProcesses)))
+    		{
 	        	// Se a fila estiver cheia 
-	            pthread_cond_wait(&priorityQueue->queue_not_full,&priorityQueue->queue_mutex);
+	        	printf("Waiting priorityQueue queue_not_full\n");
+	            pthread_cond_wait(&pQueue_not_full,&pQueue_mutex);
 	        	// Desbloqueia o cadeado da fila
-	        	pthread_mutex_unlock(&priorityQueue->queue_mutex);
        		}
+	        pthread_mutex_unlock(&pQueue_mutex);
+        	printf("Checkpoint2\n");
     	}
        	if (nProcesses>0 && created>=nProcesses) 
        		break;
@@ -229,6 +261,7 @@ void* reception(void* args){
             perror("execl error.");
             exit(1);
         }
+    	
         
    		
    		int serviceTime;
@@ -246,13 +279,12 @@ void* reception(void* args){
         	enqueue(normalQueue,client);
         else
         	enqueue(priorityQueue,client);
-
         printf("Cliente %d criado. (%d) (%d)\n",created,
         										client->serviceTime,
         										client->priority);
         created++;
     }
-    return args;
+    return nullptr;
 }
 void* service(void* args){
 	ArgsPass* argStruct = (ArgsPass*)args;
@@ -317,19 +349,32 @@ int main (int narg,char* argv[]){
 	printf("Global Patience: %d\n",globalPatience);
 	FilaCliente nQueue;
 	FilaCliente pQueue;
-	start_queue(&nQueue,MAX_QUEUE_CLIENTS);
-	start_queue(&pQueue,MAX_QUEUE_CLIENTS);
-	
+	start_queue(&nQueue,MAX_QUEUE_CLIENTS,0);
+	start_queue(&pQueue,MAX_QUEUE_CLIENTS,1);
 	ArgsPass args;
 	args.fila1= &nQueue;
 	args.fila2= &pQueue;
-	pthread_t receptionThread,serviceThread1,stopThread;
-	pthread_create(&receptionThread,NULL,reception,(void*)&args);
-	//pthread_create(&serviceThread1,NULL,service,NULL);
-	pthread_create(&stopThread,NULL,stop_program,NULL);
+	
+	pthread_create(&receptionThread,NULL,reception,&args);
+	//pthread_create(&serviceThread1,NULL,service,&args);
+	pthread_create(&stopThread,NULL,stop_program,&args);
 	
 	pthread_join(receptionThread,NULL);
 	//pthread_join(serviceThread1,NULL);
-	pthread_join(stopThread,NULL);	
+	pthread_join(stopThread,NULL);
+	while(running){
+
+	}
+	printf("End of threads.\n");
+	calculate_satisfaction();
+	clean();
+	pthread_mutex_destroy(&nQueue_mutex);
+	pthread_mutex_destroy(&pQueue_mutex);
+    pthread_cond_destroy(&nQueue_not_full);
+    pthread_cond_destroy(&pQueue_not_full);
+    pthread_cond_destroy(&nQueue_not_empty);
+    pthread_cond_destroy(&pQueue_not_empty);
+	destroy_queue(&nQueue);
+	destroy_queue(&pQueue);
 	return 0;
 }
