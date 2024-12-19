@@ -14,6 +14,7 @@ int 	running=1;
 int 	satisfieds =0;
 int 	totalClients = 0;
 int 	MAX_QUEUE_CLIENTS = 100;
+struct timeval program_start,program_end;
 pthread_t receptionThread,serviceThread1,stopThread;
 // Semáforos
 
@@ -140,23 +141,27 @@ void* stop_program(void* args){
 }
 int start_analist (){
 	int aux;
+	/*
 	pid_t pidAnalist = fork();
 	if (pidAnalist == 0){
 		execl("./analista.out","empty",(char*)NULL);
 		exit(1);
 	}
+	*/
 	// Setar PID global do analista;
 	FILE* analist = fopen("pidanalista.txt","r");
 	if (!analist){
-		printf("Analist Started.\n");\
-		return pidAnalist;
+		perror("erro analist");
 	}
 	fscanf(analist,"%i",&aux);
+	fclose(analist);
+	printf("Analist Started.\n");\
 	return aux;
 }
 
 void wake_analist(){
 	kill(analistaPID,SIGCONT);
+	printf("Analista rodou.\n");
 }
 
 long calculate_time_difference (struct timeval start, 
@@ -206,7 +211,7 @@ void* reception(void* args){
     	sem_unlink("/sem_block");
         sem_block = sem_open("/sem_block", O_CREAT, 0644, 1);
     }
-    analistaPID = start_analist();
+    
     int created = 0;
     while ( (running&&nProcesses==0)||( (nProcesses>0) &&(created<nProcesses)))
     {
@@ -300,8 +305,6 @@ void* service(void* args){
 		if ((cond==0)){
 			if (normalQueue->size > 0){
 				client = dequeue(normalQueue);
-				//printf("Dequeue normal\n");
-				//printf("queue size: %i\n",normalQueue->size);
 			}else{
 				counter++;
 				continue;
@@ -310,15 +313,13 @@ void* service(void* args){
 		else{
 			if (priorityQueue->size > 0){
 				client = dequeue(priorityQueue);
-				//printf("Dequeue priority\n");
-				//printf("queue size: %i\n",priorityQueue->size);
 			}else{
 				counter++;
 				continue;
 			}
 		}
 		kill (client->pid,SIGCONT);
-		//printf("(%d) PID-> %d\n",client->priority,client->pid);
+		printf("(%d) PID-> %d\n",client->priority,client->pid);
 		sem_wait(sem_atend);
 		struct timeval end_service;
 		gettimeofday(&end_service,NULL);
@@ -336,10 +337,20 @@ void* service(void* args){
 		sem_post(sem_block);
 		sem_post(sem_atend);
 		//printf("checkpoint3\n");
-		if (totalClients>0 && totalClients%10==0) wake_analist();
+		if (totalClients>0 && totalClients%10==0) 
+			wake_analist();
 	}
 	running = false;
 	printf("Execution end\n");
+	gettimeofday(&program_end,NULL);
+	printf("Processos atendidos: %d\n",totalClients);
+	calculate_satisfaction();
+	long seconds,useconds;
+	seconds = program_end.tv_sec - program_start.tv_sec;
+	useconds = program_end.tv_usec - program_start.tv_usec;
+	double total_time = seconds + useconds/1000000.0;
+	printf("Tempo total de execução: %.3f ms\n", total_time);
+	remove("lng.txt");
 	return NULL;
 }
 void clean(){
@@ -356,11 +367,15 @@ int main (int narg,char* argv[]){
 		globalPatience = atoi(argv[2]);
 	}
 	//clean();
-	struct timeval program_start,program_end;
+	
 	gettimeofday(&program_start,NULL);
+	if (nProcesses==0){
+		nProcesses = MAX_ITER;
+	}
 	if (nProcesses>0){
 		MAX_QUEUE_CLIENTS=nProcesses;
 	}
+
 	printf("MAX_QUEUE_CLIENTS: %d\n",MAX_QUEUE_CLIENTS);
 	printf("Client Processes: %d\n",nProcesses);
 	printf("Global Patience: %d\n",globalPatience);
@@ -371,7 +386,7 @@ int main (int narg,char* argv[]){
 	ArgsPass args;
 	args.fila1= &nQueue;
 	args.fila2= &pQueue;
-
+	analistaPID = start_analist();
 	pthread_create(&receptionThread,NULL,reception,(void*)&args);
 	pthread_create(&serviceThread1,NULL,service,(void*)&args);
 	pthread_create(&stopThread,NULL,stop_program,NULL);
@@ -380,14 +395,7 @@ int main (int narg,char* argv[]){
 	pthread_join(stopThread,NULL);
 	while(running==true){
 	}
-
-	gettimeofday(&program_end,NULL);
-	calculate_satisfaction();
-	long seconds,useconds;
-	seconds = program_end.tv_sec - program_start.tv_sec;
-	useconds = program_end.tv_usec - program_start.tv_usec;
-	double total_time = seconds + useconds/1000000.0;
-	printf("Tempo total de execução: %.3f ms\n", total_time);
+	
 	pthread_mutex_destroy(&nQueue_mutex);
 	pthread_mutex_destroy(&pQueue_mutex);
     pthread_cond_destroy(&nQueue_not_full);
@@ -396,6 +404,6 @@ int main (int narg,char* argv[]){
     pthread_cond_destroy(&pQueue_not_empty);
 	destroy_queue(&nQueue);
 	destroy_queue(&pQueue);
-	clean();
+	//clean();
 	return 0;
 }

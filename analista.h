@@ -12,8 +12,6 @@
 #include <fcntl.h>
 
 //função pra gravar o pid do analista no arquivo pidanalista.txt
-void* allocmem (size_t size);
-void fillmem (void* ptr,size_t size);
 void start_analist();
-void rewrite_lng(int buffer[],int c);
+void rewrite_lng(int buffer_size,int c);
 void* print_pids(int PID_MAX_PRINT);
