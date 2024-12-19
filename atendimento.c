@@ -4,6 +4,8 @@
 #define false 	0
 #define nullptr NULL
 
+#define MAX_ITER (1024*1024*1024)
+
 // Variaveis globais
 
 int 	nProcesses ;
@@ -130,11 +132,8 @@ Cliente* dequeue(FilaCliente *queue){
 void* stop_program(void* args){
 	char c;
 	printf("Stop_program is listening. (s to stop)\n");
-	while ((running==1)&&(getchar()!='s')){
-		if (c=='s'){
-			running=0;
-			break;
-		}
+	while ((running==1)&&(c=getchar()!='s')){
+
 	}
 	running=0;
 	return NULL;
@@ -209,10 +208,9 @@ void* reception(void* args){
     }
     analistaPID = start_analist();
     int created = 0;
-    while ((running&&nProcesses==0)|| (nProcesses>0&&created<nProcesses)){
-    	if (running==0){
-    		break;
-    	}
+    while ( (running&&nProcesses==0)||( (nProcesses>0) &&(created<nProcesses)))
+    {
+    	
     	while (nProcesses==0 && !running){
     		break;
     	}
@@ -241,6 +239,9 @@ void* reception(void* args){
 	        	// Desbloqueia o cadeado da fila
        		}
 	        pthread_mutex_unlock(&pQueue_mutex);
+    	}
+    	if (running==0){
+    		break;
     	}
        	if (nProcesses>0 && created>=nProcesses) 
        		break;
@@ -273,8 +274,8 @@ void* reception(void* args){
         	enqueue(priorityQueue,client);
         //printf("Cliente %d criado. (%d) (%d)\n",created,client->serviceTime,client->priority);
         created++;
+
     }
-    printf("cabou reception\n");
     return NULL;
 }
 void* service(void* args){
@@ -337,8 +338,8 @@ void* service(void* args){
 		//printf("checkpoint3\n");
 		if (totalClients>0 && totalClients%10==0) wake_analist();
 	}
-	printf("Cabou service.\n");
 	running = false;
+	printf("Execution end\n");
 	return NULL;
 }
 void clean(){
@@ -379,8 +380,8 @@ int main (int narg,char* argv[]){
 	pthread_join(stopThread,NULL);
 	while(running==true){
 	}
+
 	gettimeofday(&program_end,NULL);
-	printf("End of threads.\n");
 	calculate_satisfaction();
 	long seconds,useconds;
 	seconds = program_end.tv_sec - program_start.tv_sec;
