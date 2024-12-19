@@ -87,7 +87,6 @@ int main (){
     	print_pids(10);
     	rewrite_lng(ALLOC_SIZE,10);
     	sem_post(sem_block);
-
     	raise(SIGSTOP);
     }
 }
