@@ -42,8 +42,9 @@ Cliente* dequeue(FilaCliente *queue);
 void*	stop_program(void* args);
 int		start_analist();
 void	wake_analist();
+void 	analist_read_left();
 void	calculate_satisfaction();
-long	calculate_time_difference(	struct timeval arrive,
+double	calculate_time_difference(	struct timeval arrive,
 									struct timeval exit);
 void 	calculate_program_time(struct timeval start,struct timeval end);
 void* 	service(void* args);

@@ -14,4 +14,4 @@
 //função pra gravar o pid do analista no arquivo pidanalista.txt
 void start_analist();
 void rewrite_lng(int buffer_size,int c);
-void* print_pids(int PID_MAX_PRINT);
+int print_pids(int PID_MAX_PRINT);

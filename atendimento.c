@@ -3,7 +3,7 @@
 #define true 	1
 #define false 	0
 #define nullptr NULL
-
+#define ALLOC_SIZE 1024
 #define MAX_ITER (1024*1024*1024)
 
 // Variaveis globais
@@ -161,10 +161,38 @@ int start_analist (){
 
 void wake_analist(){
 	kill(analistaPID,SIGCONT);
-	printf("Analista rodou.\n");
+	//printf("Analista rodou.\n");
 }
-
-long calculate_time_difference (struct timeval start, 
+void analist_read_left(){
+	
+	int clear=0;
+	while (clear==0){
+		FILE* lng = fopen("lng.txt","r+");
+		if (!lng){
+			sem_post (sem_block);
+			clear=1;
+			break;
+		}
+		else{
+			int aux;
+			if (fscanf(lng,"%d",&aux)!=1){
+				
+				fclose(lng);
+				sem_post(sem_block);
+				clear=1;
+				break;
+			}
+			else{
+				fclose(lng);
+				sem_post(sem_block);
+				wake_analist();
+			}
+		}
+		printf("\0");
+	}
+	return;
+}
+double calculate_time_difference (struct timeval start, 
 								struct timeval end){
 	long seconds = end.tv_sec - start.tv_sec;
     long useconds = end.tv_usec - start.tv_usec;
@@ -342,6 +370,7 @@ void* service(void* args){
 	}
 	running = false;
 	printf("Execution end\n");
+	analist_read_left();
 	gettimeofday(&program_end,NULL);
 	printf("Processos atendidos: %d\n",totalClients);
 	calculate_satisfaction();
@@ -350,12 +379,11 @@ void* service(void* args){
 	useconds = program_end.tv_usec - program_start.tv_usec;
 	double total_time = seconds + useconds/1000000.0;
 	printf("Tempo total de execução: %.3f ms\n", total_time);
-	remove("lng.txt");
+	//remove("lng.txt");
 	return NULL;
 }
 void clean(){
 	remove ("lng.txt");
-	remove ("demanda.txt");
 }
 int main (int narg,char* argv[]){
 	if (narg<3){
@@ -371,6 +399,7 @@ int main (int narg,char* argv[]){
 	gettimeofday(&program_start,NULL);
 	if (nProcesses==0){
 		nProcesses = MAX_ITER;
+		MAX_QUEUE_CLIENTS = 100;
 	}
 	if (nProcesses>0){
 		MAX_QUEUE_CLIENTS=nProcesses;
@@ -395,7 +424,6 @@ int main (int narg,char* argv[]){
 	pthread_join(stopThread,NULL);
 	while(running==true){
 	}
-	
 	pthread_mutex_destroy(&nQueue_mutex);
 	pthread_mutex_destroy(&pQueue_mutex);
     pthread_cond_destroy(&nQueue_not_full);
@@ -404,6 +432,6 @@ int main (int narg,char* argv[]){
     pthread_cond_destroy(&pQueue_not_empty);
 	destroy_queue(&nQueue);
 	destroy_queue(&pQueue);
-	//clean();
+	clean();
 	return 0;
 }
