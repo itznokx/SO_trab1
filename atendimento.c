@@ -276,7 +276,7 @@ void* service(void* args){
 	ArgsPass* argStruct = (ArgsPass*)args;
 	FilaCliente* normalQueue 	= argStruct->fila1;
 	FilaCliente* priorityQueue 	= argStruct->fila2;
-
+	int counter = 0;
 	while (	(nProcesses&&totalClients<nProcesses)||
 			(nProcesses==0&&running)||
 			(nProcesses==0&&normalQueue->size>0)||
@@ -288,35 +288,47 @@ void* service(void* args){
 		}
 		Cliente* client;
 		// Atende 1 a cada 3 da fila Normal
-		if ((totalClients%3==0)){
-			if (normalQueue->size <= 0){
+		int cond = counter%3;
+		if ((cond==0)){
+			if (normalQueue->size > 0){
 				client = dequeue(normalQueue);
 				printf("Dequeue normal\n");
+				printf("queue size: %i\n",normalQueue->size);
+			}else{
+				counter++;
+				continue;
 			}
 		}
-		if ((totalClients%3!=0)){
+		else{
 			if (priorityQueue->size > 0){
-				client = dequeue(normalQueue);
+				client = dequeue(priorityQueue);
 				printf("Dequeue priority\n");
+				printf("queue size: %i\n",priorityQueue->size);
+			}else{
+				counter++;
+				continue;
 			}
 		}
 		kill (client->pid,SIGCONT);
-		printf("checkpoint2 PID-> %d\n",client->pid);
+		printf("checkpoint2 PID-> %d\n\n",client->pid);
 		sem_wait(sem_atend);
 		struct timeval end_service;
 		gettimeofday(&end_service,NULL);
 		long time_passed = calculate_time_difference(client->arrive,end_service);
 		long patience = client->patience;
+		counter++;
 		totalClients++;
-		printf("totalClients: %d\n",totalClients);
+		//printf("totalClients: %d\n",totalClients);
 		if (time_passed<=patience)
 			satisfieds++;
 		sem_wait(sem_block);
-		FILE *f = fopen("lng.txt","w+");
-		fprintf(f, "%d\n",client->pid);
-		fclose(f);
+		FILE *lng = fopen("lng.txt","w+");
+		fprintf(lng, "%d\n",client->pid);
+		fclose(lng);
 		sem_post(sem_block);
-		printf("checkpoint3\n");
+		sem_post(sem_atend);
+		//printf("checkpoint3\n");
+		if (totalClients>0 && totalClients%10==0) wake_analist();
 	}
 	return args;
 }
