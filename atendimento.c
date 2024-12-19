@@ -12,7 +12,6 @@ int 	running=1;
 int 	satisfieds =0;
 int 	totalClients = 0;
 int 	MAX_QUEUE_CLIENTS = 100;
-struct timeval program_start,program_end;
 pthread_t receptionThread,serviceThread1,stopThread;
 // Semáforos
 
@@ -32,7 +31,7 @@ pthread_cond_t pQueue_not_empty = PTHREAD_COND_INITIALIZER;
 
 // PID do analista
 
-int analistaPID;
+pid_t analistaPID;
 
 typedef struct ArgsPass
 {
@@ -129,13 +128,16 @@ Cliente* dequeue(FilaCliente *queue){
 }
 // Thread-function para parar o programa
 void* stop_program(void* args){
+	char c;
 	printf("Stop_program is listening. (s to stop)\n");
-	while (getchar()!='s'){
-
+	while ((running==1)&&(getchar()!='s')){
+		if (c=='s'){
+			running=0;
+			break;
+		}
 	}
-	running = false;
-	exit(1);
-	return args;
+	running=0;
+	return NULL;
 }
 int start_analist (){
 	int aux;
@@ -158,15 +160,16 @@ void wake_analist(){
 	kill(analistaPID,SIGCONT);
 }
 
-long calculate_time_difference (struct timeval arrive, 
-								struct timeval timeOfService){
-	long seconds = timeOfService.tv_sec - arrive.tv_sec;
-    long useconds = timeOfService.tv_usec - arrive.tv_usec;
+long calculate_time_difference (struct timeval start, 
+								struct timeval end){
+	long seconds = end.tv_sec - start.tv_sec;
+    long useconds = end.tv_usec - start.tv_usec;
     return seconds*1000 + useconds/1000;
 }
-long calculate_program_time(){
-	gettimeofday(&program_end,NULL);
-	return calculate_time_difference(program_start,program_end);
+void calculate_program_time(struct timeval start,
+							struct timeval end){
+	long total_time = calculate_time_difference(start,end);
+	printf("Tempo total de execução: %ld ms\n", total_time);
 }
 void calculate_satisfaction(){
 	kill(analistaPID, SIGKILL);
@@ -178,10 +181,8 @@ void calculate_satisfaction(){
     if (totalClients>0) {
         satisfaction_rate = (double)satisfieds / (double)totalClients;
     }
-    
-    long total_time = calculate_time_difference(program_start,program_end);
     printf("Taxa de satisfação: %.2f%%\n", satisfaction_rate*100);
-    printf("Tempo total de execução: %ld ms\n", total_time);
+    
 }
 
 void* reception(void* args){
@@ -209,6 +210,9 @@ void* reception(void* args){
     analistaPID = start_analist();
     int created = 0;
     while ((running&&nProcesses==0)|| (nProcesses>0&&created<nProcesses)){
+    	if (running==0){
+    		break;
+    	}
     	while (nProcesses==0 && !running){
     		break;
     	}
@@ -270,7 +274,8 @@ void* reception(void* args){
         //printf("Cliente %d criado. (%d) (%d)\n",created,client->serviceTime,client->priority);
         created++;
     }
-    return nullptr;
+    printf("cabou reception\n");
+    return NULL;
 }
 void* service(void* args){
 	ArgsPass* argStruct = (ArgsPass*)args;
@@ -286,6 +291,8 @@ void* service(void* args){
 			(priorityQueue->size)==0){
 			break;
 		}
+		if (running==0)
+			break;
 		Cliente* client;
 		// Atende 1 a cada 3 da fila Normal
 		int cond = counter%3;
@@ -310,7 +317,7 @@ void* service(void* args){
 			}
 		}
 		kill (client->pid,SIGCONT);
-		printf("(%d) PID-> %d\n",client->priority,client->pid);
+		//printf("(%d) PID-> %d\n",client->priority,client->pid);
 		sem_wait(sem_atend);
 		struct timeval end_service;
 		gettimeofday(&end_service,NULL);
@@ -330,8 +337,9 @@ void* service(void* args){
 		//printf("checkpoint3\n");
 		if (totalClients>0 && totalClients%10==0) wake_analist();
 	}
-	printf("Cabou.\n");
-	return args;
+	printf("Cabou service.\n");
+	running = false;
+	return NULL;
 }
 void clean(){
 	remove ("lng.txt");
@@ -347,6 +355,7 @@ int main (int narg,char* argv[]){
 		globalPatience = atoi(argv[2]);
 	}
 	//clean();
+	struct timeval program_start,program_end;
 	gettimeofday(&program_start,NULL);
 	if (nProcesses>0){
 		MAX_QUEUE_CLIENTS=nProcesses;
@@ -361,19 +370,18 @@ int main (int narg,char* argv[]){
 	ArgsPass args;
 	args.fila1= &nQueue;
 	args.fila2= &pQueue;
-	
+
 	pthread_create(&receptionThread,NULL,reception,(void*)&args);
 	pthread_create(&serviceThread1,NULL,service,(void*)&args);
 	pthread_create(&stopThread,NULL,stop_program,NULL);
 	pthread_join(serviceThread1,NULL);
 	pthread_join(receptionThread,NULL);
 	pthread_join(stopThread,NULL);
-	while(running){
-		printf("running\n");
+	while(running==true){
 	}
 	printf("End of threads.\n");
 	calculate_satisfaction();
-	clean();
+	calculate_program_time(program_start,program_end);
 	pthread_mutex_destroy(&nQueue_mutex);
 	pthread_mutex_destroy(&pQueue_mutex);
     pthread_cond_destroy(&nQueue_not_full);
@@ -382,6 +390,6 @@ int main (int narg,char* argv[]){
     pthread_cond_destroy(&pQueue_not_empty);
 	destroy_queue(&nQueue);
 	destroy_queue(&pQueue);
-	exit(0);
+	clean();
 	return 0;
 }

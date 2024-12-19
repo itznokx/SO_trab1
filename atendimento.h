@@ -45,6 +45,7 @@ void	wake_analist();
 void	calculate_satisfaction();
 long	calculate_time_difference(	struct timeval arrive,
 									struct timeval exit);
+void 	calculate_program_time(struct timeval start,struct timeval end);
 void* 	service(void* args);
 void* 	reception(void* args);
 void	clean();
