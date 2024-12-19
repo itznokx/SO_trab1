@@ -25,16 +25,17 @@ void  rewrite_lng(int buffer[],int c){
 	FILE* lng = fopen("lng.txt","w+");
 	int counter = 0;
 	while (counter < c) {
-		fscanf(lng,"%d\n",buffer[counter]);
+		fscanf(lng,"%d\n",&buffer[counter]);
 		counter++;
 	}
 	fclose(lng);
 }
-void* print_pids(FILE* lng,int PID_MAX_PRINT){
+void* print_pids(int PID_MAX_PRINT){
+	FILE* lng = fopen("lng.txt","w+")
 	int actualPid;
 	int counter = 0;
 
-	while (counter < PID_MAX_PRINT && fscanf(lng,"%d",&actualPid)==1){
+	while (counter < PID_MAX_PRINT && fscanf(lng,"%d",&actualPid)!=EOF){
 		printf("(Analista) PID: %d\n",actualPid);
 		counter++;
 	}
@@ -44,7 +45,7 @@ void* print_pids(FILE* lng,int PID_MAX_PRINT){
 	}
 	int rCounter = 0;
 	int linesBuffer[ALLOC_SIZE];
-	while (fscanf(lng, "%d\n",linesBuffer[rCounter])==1){
+	while (fscanf(lng, "%d\n",&linesBuffer[rCounter])==1){
 		rCounter++;
 	}
 	fclose(lng);
@@ -63,7 +64,7 @@ int main (){
     while (1)
     {
     	sem_wait(sem_block);
-    	FILE* lng = fopen("lng.txt","r+");
+    	FILE* lng = fopen("lng.txt","w+");
     	// Se o arquivo lng não existir;
     	if (!lng){
     		// Libera o semaforo
@@ -73,8 +74,9 @@ int main (){
     		continue;
     	}
     	// Printa os pids
+    	printf("Analista acordado.\n");
     	fclose(lng);
-    	print_pids(lng,10);
+    	print_pids(10);
     	sem_post(sem_block);
     	// No final dorme para ser acordado novamente posteiriormente
     	raise(SIGSTOP);

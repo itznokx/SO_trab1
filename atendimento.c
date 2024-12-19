@@ -292,8 +292,8 @@ void* service(void* args){
 		if ((cond==0)){
 			if (normalQueue->size > 0){
 				client = dequeue(normalQueue);
-				printf("Dequeue normal\n");
-				printf("queue size: %i\n",normalQueue->size);
+				//printf("Dequeue normal\n");
+				//printf("queue size: %i\n",normalQueue->size);
 			}else{
 				counter++;
 				continue;
@@ -302,15 +302,15 @@ void* service(void* args){
 		else{
 			if (priorityQueue->size > 0){
 				client = dequeue(priorityQueue);
-				printf("Dequeue priority\n");
-				printf("queue size: %i\n",priorityQueue->size);
+				//printf("Dequeue priority\n");
+				//printf("queue size: %i\n",priorityQueue->size);
 			}else{
 				counter++;
 				continue;
 			}
 		}
 		kill (client->pid,SIGCONT);
-		printf("checkpoint2 PID-> %d\n\n",client->pid);
+		printf("(%d) PID-> %d\n",client->priority,client->pid);
 		sem_wait(sem_atend);
 		struct timeval end_service;
 		gettimeofday(&end_service,NULL);
@@ -322,7 +322,7 @@ void* service(void* args){
 		if (time_passed<=patience)
 			satisfieds++;
 		sem_wait(sem_block);
-		FILE *lng = fopen("lng.txt","w+");
+		FILE *lng = fopen("lng.txt","a+");
 		fprintf(lng, "%d\n",client->pid);
 		fclose(lng);
 		sem_post(sem_block);
@@ -330,6 +330,7 @@ void* service(void* args){
 		//printf("checkpoint3\n");
 		if (totalClients>0 && totalClients%10==0) wake_analist();
 	}
+	printf("Cabou.\n");
 	return args;
 }
 void clean(){
@@ -381,5 +382,6 @@ int main (int narg,char* argv[]){
     pthread_cond_destroy(&pQueue_not_empty);
 	destroy_queue(&nQueue);
 	destroy_queue(&pQueue);
+	exit(0);
 	return 0;
 }
