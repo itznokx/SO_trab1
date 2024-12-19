@@ -379,9 +379,14 @@ int main (int narg,char* argv[]){
 	pthread_join(stopThread,NULL);
 	while(running==true){
 	}
+	gettimeofday(&program_end,NULL);
 	printf("End of threads.\n");
 	calculate_satisfaction();
-	calculate_program_time(program_start,program_end);
+	long seconds,useconds;
+	seconds = program_end.tv_sec - program_start.tv_sec;
+	useconds = program_end.tv_usec - program_start.tv_usec;
+	double total_time = seconds + useconds/1000000.0;
+	printf("Tempo total de execução: %.3f ms\n", total_time);
 	pthread_mutex_destroy(&nQueue_mutex);
 	pthread_mutex_destroy(&pQueue_mutex);
     pthread_cond_destroy(&nQueue_not_full);
